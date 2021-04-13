@@ -1,9 +1,10 @@
 <?xml version="1.0"?>
-<sdf version='1.7'>
+<sdf version='1.6'>
   <model name='iris'>
     <link name='base_link'>
+      <pose>0 0 0 0 0 0</pose>
       <inertial>
-        <pose>0 0 0 0 -0 0</pose>
+        <pose>0 0 0 0 0 0</pose>
         <mass>1.5</mass>
         <inertia>
           <ixx>0.029125</ixx>
@@ -15,7 +16,7 @@
         </inertia>
       </inertial>
       <collision name='base_link_inertia_collision'>
-        <pose>0 0 0 0 -0 0</pose>
+        <pose>0 0 0 0 0 0</pose>
         <geometry>
           <box>
             <size>0.47 0.47 0.11</size>
@@ -34,11 +35,11 @@
         </surface>
       </collision>
       <visual name='base_link_inertia_visual'>
-        <pose>0 0 0 0 -0 0</pose>
+        <pose>0 0 0 0 0 0</pose>
         <geometry>
           <mesh>
             <scale>1 1 1</scale>
-            <uri>model://rotors_description/meshes/iris.stl</uri>
+            <uri>model://iris/meshes/iris.stl</uri>
           </mesh>
         </geometry>
         <material>
@@ -51,10 +52,24 @@
       <gravity>1</gravity>
       <velocity_decay/>
     </link>
+    <link name='/imu_link'>
+      <pose>0 0 0 0 0 0</pose>
+      <inertial>
+        <pose>0 0 0 0 0 0</pose>
+        <mass>0.015</mass>
+        <inertia>
+          <ixx>1e-05</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>1e-05</iyy>
+          <iyz>0</iyz>
+          <izz>1e-05</izz>
+        </inertia>
+      </inertial>
+    </link>
     <joint name='/imu_joint' type='revolute'>
-      <pose relative_to='base_link'>0 0 0 0 -0 0</pose>
-      <parent>base_link</parent>
       <child>/imu_link</child>
+      <parent>base_link</parent>
       <axis>
         <xyz>1 0 0</xyz>
         <limit>
@@ -67,43 +82,13 @@
           <spring_reference>0</spring_reference>
           <spring_stiffness>0</spring_stiffness>
         </dynamics>
-      </axis>
-    </joint>
-    <link name='/imu_link'>
-      <pose relative_to='/imu_joint'>0 0 0 0 -0 0</pose>
-      <inertial>
-        <pose>0 0 0 0 -0 0</pose>
-        <mass>0.015</mass>
-        <inertia>
-          <ixx>1e-05</ixx>
-          <ixy>0</ixy>
-          <ixz>0</ixz>
-          <iyy>1e-05</iyy>
-          <iyz>0</iyz>
-          <izz>1e-05</izz>
-        </inertia>
-      </inertial>
-    </link>
-    <joint name='rotor_0_joint' type='revolute'>
-      <pose relative_to='base_link'>0.13 -0.22 0.023 0 -0 0</pose>
-      <parent>base_link</parent>
-      <child>rotor_0</child>
-      <axis>
-        <xyz>0 0 1</xyz>
-        <limit>
-          <lower>-1e+16</lower>
-          <upper>1e+16</upper>
-        </limit>
-        <dynamics>
-          <spring_reference>0</spring_reference>
-          <spring_stiffness>0</spring_stiffness>
-        </dynamics>
+        <use_parent_model_frame>1</use_parent_model_frame>
       </axis>
     </joint>
     <link name='rotor_0'>
-      <pose relative_to='rotor_0_joint'>0 0 0 0 -0 0</pose>
+      <pose>0.13 -0.22 0.023 0 0 0</pose>
       <inertial>
-        <pose>0 0 0 0 -0 0</pose>
+        <pose>0 0 0 0 0 0</pose>
         <mass>0.005</mass>
         <inertia>
           <ixx>9.75e-07</ixx>
@@ -115,7 +100,7 @@
         </inertia>
       </inertial>
       <collision name='rotor_0_collision'>
-        <pose>0 0 0 0 -0 0</pose>
+        <pose>0 0 0 0 0 0</pose>
         <geometry>
           <cylinder>
             <length>0.005</length>
@@ -132,11 +117,11 @@
         </surface>
       </collision>
       <visual name='rotor_0_visual'>
-        <pose>0 0 0 0 -0 0</pose>
+        <pose>0 0 0 0 0 0</pose>
         <geometry>
           <mesh>
             <scale>1 1 1</scale>
-            <uri>model://rotors_description/meshes/iris_prop_ccw.dae</uri>
+            <uri>model://iris/meshes/iris_prop_ccw.dae</uri>
           </mesh>
         </geometry>
         <material>
@@ -149,10 +134,9 @@
       <gravity>1</gravity>
       <velocity_decay/>
     </link>
-    <joint name='rotor_1_joint' type='revolute'>
-      <pose relative_to='base_link'>-0.13 0.2 0.023 0 -0 0</pose>
+    <joint name='rotor_0_joint' type='revolute'>
+      <child>rotor_0</child>
       <parent>base_link</parent>
-      <child>rotor_1</child>
       <axis>
         <xyz>0 0 1</xyz>
         <limit>
@@ -163,12 +147,13 @@
           <spring_reference>0</spring_reference>
           <spring_stiffness>0</spring_stiffness>
         </dynamics>
+        <use_parent_model_frame>1</use_parent_model_frame>
       </axis>
     </joint>
     <link name='rotor_1'>
-      <pose relative_to='rotor_1_joint'>0 0 0 0 -0 0</pose>
+      <pose>-0.13 0.2 0.023 0 0 0</pose>
       <inertial>
-        <pose>0 0 0 0 -0 0</pose>
+        <pose>0 0 0 0 0 0</pose>
         <mass>0.005</mass>
         <inertia>
           <ixx>9.75e-07</ixx>
@@ -180,7 +165,7 @@
         </inertia>
       </inertial>
       <collision name='rotor_1_collision'>
-        <pose>0 0 0 0 -0 0</pose>
+        <pose>0 0 0 0 0 0</pose>
         <geometry>
           <cylinder>
             <length>0.005</length>
@@ -197,11 +182,11 @@
         </surface>
       </collision>
       <visual name='rotor_1_visual'>
-        <pose>0 0 0 0 -0 0</pose>
+        <pose>0 0 0 0 0 0</pose>
         <geometry>
           <mesh>
             <scale>1 1 1</scale>
-            <uri>model://rotors_description/meshes/iris_prop_ccw.dae</uri>
+            <uri>model://iris/meshes/iris_prop_ccw.dae</uri>
           </mesh>
         </geometry>
         <material>
@@ -214,10 +199,9 @@
       <gravity>1</gravity>
       <velocity_decay/>
     </link>
-    <joint name='rotor_2_joint' type='revolute'>
-      <pose relative_to='base_link'>0.13 0.22 0.023 0 -0 0</pose>
+    <joint name='rotor_1_joint' type='revolute'>
+      <child>rotor_1</child>
       <parent>base_link</parent>
-      <child>rotor_2</child>
       <axis>
         <xyz>0 0 1</xyz>
         <limit>
@@ -228,12 +212,13 @@
           <spring_reference>0</spring_reference>
           <spring_stiffness>0</spring_stiffness>
         </dynamics>
+        <use_parent_model_frame>1</use_parent_model_frame>
       </axis>
     </joint>
     <link name='rotor_2'>
-      <pose relative_to='rotor_2_joint'>0 0 0 0 -0 0</pose>
+      <pose>0.13 0.22 0.023 0 0 0</pose>
       <inertial>
-        <pose>0 0 0 0 -0 0</pose>
+        <pose>0 0 0 0 0 0</pose>
         <mass>0.005</mass>
         <inertia>
           <ixx>9.75e-07</ixx>
@@ -245,7 +230,7 @@
         </inertia>
       </inertial>
       <collision name='rotor_2_collision'>
-        <pose>0 0 0 0 -0 0</pose>
+        <pose>0 0 0 0 0 0</pose>
         <geometry>
           <cylinder>
             <length>0.005</length>
@@ -262,11 +247,11 @@
         </surface>
       </collision>
       <visual name='rotor_2_visual'>
-        <pose>0 0 0 0 -0 0</pose>
+        <pose>0 0 0 0 0 0</pose>
         <geometry>
           <mesh>
             <scale>1 1 1</scale>
-            <uri>model://rotors_description/meshes/iris_prop_cw.dae</uri>
+            <uri>model://iris/meshes/iris_prop_cw.dae</uri>
           </mesh>
         </geometry>
         <material>
@@ -279,10 +264,9 @@
       <gravity>1</gravity>
       <velocity_decay/>
     </link>
-    <joint name='rotor_3_joint' type='revolute'>
-      <pose relative_to='base_link'>-0.13 -0.2 0.023 0 -0 0</pose>
+    <joint name='rotor_2_joint' type='revolute'>
+      <child>rotor_2</child>
       <parent>base_link</parent>
-      <child>rotor_3</child>
       <axis>
         <xyz>0 0 1</xyz>
         <limit>
@@ -293,12 +277,13 @@
           <spring_reference>0</spring_reference>
           <spring_stiffness>0</spring_stiffness>
         </dynamics>
+        <use_parent_model_frame>1</use_parent_model_frame>
       </axis>
     </joint>
     <link name='rotor_3'>
-      <pose relative_to='rotor_3_joint'>0 0 0 0 -0 0</pose>
+      <pose>-0.13 -0.2 0.023 0 0 0</pose>
       <inertial>
-        <pose>0 0 0 0 -0 0</pose>
+        <pose>0 0 0 0 0 0</pose>
         <mass>0.005</mass>
         <inertia>
           <ixx>9.75e-07</ixx>
@@ -310,7 +295,7 @@
         </inertia>
       </inertial>
       <collision name='rotor_3_collision'>
-        <pose>0 0 0 0 -0 0</pose>
+        <pose>0 0 0 0 0 0</pose>
         <geometry>
           <cylinder>
             <length>0.005</length>
@@ -327,11 +312,11 @@
         </surface>
       </collision>
       <visual name='rotor_3_visual'>
-        <pose>0 0 0 0 -0 0</pose>
+        <pose>0 0 0 0 0 0</pose>
         <geometry>
           <mesh>
             <scale>1 1 1</scale>
-            <uri>model://rotors_description/meshes/iris_prop_cw.dae</uri>
+            <uri>model://iris/meshes/iris_prop_cw.dae</uri>
           </mesh>
         </geometry>
         <material>
@@ -344,6 +329,22 @@
       <gravity>1</gravity>
       <velocity_decay/>
     </link>
+    <joint name='rotor_3_joint' type='revolute'>
+      <child>rotor_3</child>
+      <parent>base_link</parent>
+      <axis>
+        <xyz>0 0 1</xyz>
+        <limit>
+          <lower>-1e+16</lower>
+          <upper>1e+16</upper>
+        </limit>
+        <dynamics>
+          <spring_reference>0</spring_reference>
+          <spring_stiffness>0</spring_stiffness>
+        </dynamics>
+        <use_parent_model_frame>1</use_parent_model_frame>
+      </axis>
+    </joint>
 
     <include>
       <uri>model://gps</uri>
@@ -368,7 +369,7 @@
       <timeConstantUp>0.0125</timeConstantUp>
       <timeConstantDown>0.025</timeConstantDown>
       <maxRotVelocity>1100</maxRotVelocity>
-      <motorConstant>8.54858e-06</motorConstant>
+      <motorConstant>5.84e-06</motorConstant>
       <momentConstant>0.06</momentConstant>
       <commandSubTopic>/gazebo/command/motor_speed</commandSubTopic>
       <motorNumber>0</motorNumber>
@@ -385,7 +386,7 @@
       <timeConstantUp>0.0125</timeConstantUp>
       <timeConstantDown>0.025</timeConstantDown>
       <maxRotVelocity>1100</maxRotVelocity>
-      <motorConstant>8.54858e-06</motorConstant>
+      <motorConstant>5.84e-06</motorConstant>
       <momentConstant>0.06</momentConstant>
       <commandSubTopic>/gazebo/command/motor_speed</commandSubTopic>
       <motorNumber>1</motorNumber>
@@ -402,7 +403,7 @@
       <timeConstantUp>0.0125</timeConstantUp>
       <timeConstantDown>0.025</timeConstantDown>
       <maxRotVelocity>1100</maxRotVelocity>
-      <motorConstant>8.54858e-06</motorConstant>
+      <motorConstant>5.84e-06</motorConstant>
       <momentConstant>0.06</momentConstant>
       <commandSubTopic>/gazebo/command/motor_speed</commandSubTopic>
       <motorNumber>2</motorNumber>
@@ -419,7 +420,7 @@
       <timeConstantUp>0.0125</timeConstantUp>
       <timeConstantDown>0.025</timeConstantDown>
       <maxRotVelocity>1100</maxRotVelocity>
-      <motorConstant>8.54858e-06</motorConstant>
+      <motorConstant>5.84e-06</motorConstant>
       <momentConstant>0.06</momentConstant>
       <commandSubTopic>/gazebo/command/motor_speed</commandSubTopic>
       <motorNumber>3</motorNumber>
@@ -451,8 +452,8 @@
       <magSubTopic>/mag</magSubTopic>
       <baroSubTopic>/baro</baroSubTopic>
       <mavlink_addr>INADDR_ANY</mavlink_addr>
-      <mavlink_udp_port>14560</mavlink_udp_port>
       <mavlink_tcp_port>4560</mavlink_tcp_port>
+      <mavlink_udp_port>14560</mavlink_udp_port>
       <serialEnabled>0</serialEnabled>
       <serialDevice>/dev/ttyACM0</serialDevice>
       <baudRate>921600</baudRate>
@@ -462,7 +463,6 @@
       <sdk_udp_port>14540</sdk_udp_port>
       <hil_mode>0</hil_mode>
       <hil_state_level>0</hil_state_level>
-      <vehicle_is_tailsitter>0</vehicle_is_tailsitter>
       <send_vision_estimation>0</send_vision_estimation>
       <send_odometry>1</send_odometry>
       <enable_lockstep>1</enable_lockstep>
