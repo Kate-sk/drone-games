@@ -16,7 +16,7 @@ from geographic_msgs.msg import GeoPointStamped
 
 from mavros_msgs.srv import SetMode, CommandBool, CommandVtolTransition, CommandHome
 
-freq = 20  # Герц, частота посылки управляющих команд аппарату
+freq = 40  # Герц, частота посылки управляющих команд аппарату
 node_name = "offboard_node"
 lz = {}
 
@@ -24,34 +24,35 @@ class PotentialField():
     def __init__(self, drone_id, radius, k_push):
         self.r = radius
         self.k = k_push
-        self.ignore = drone_id
+        self.ignore = drone_id-1
         self.primary_pose = np.array([0., 0., 0.])
 
     def update(self, poses):
         self.primary_pose = poses[self.ignore]
-        potential_poses = poses.remove(self.primary_pose)
-        distances = self.calc_distances(potential_poses)
-        danger_poses = [ [pose, i] for i, pose in enumerate(potential_poses) if distances[i] <= self.r ]
+        distances = self.calc_distances(poses)
+        #print(distances)
+        danger_poses = [ [pose, i] for i, pose in enumerate(poses) if distances[i] <= self.r ]
         vec = np.array([0., 0., 0.])
         for t in danger_poses:
             pose = t[0]
             drone_id = t[1]
-            amplifier = self.k * (self.r - distances[drone_id])**2
-            vec += self.vectorize(self.primary_pose, pose)*amplifier
+            if(drone_id != self.ignore):
+                amplifier = self.k * (self.r - distances[drone_id])**2
+                vec += self.vectorize(self.primary_pose, pose)*amplifier
         return vec
 
     def calc_distances(self, poses):
         dist = []
         for pose in poses:
-            dist.append(self.distanceTo(self.primary_pose, pose))
+            dist.append(self.distance(self.primary_pose, pose))
         return dist
 
-    def distanceTo(self, p1, p2):
+    def distance(self, p1, p2):
         return np.sqrt((p1[0]-p2[0])**2 + (p1[1]-p2[1])**2 +(p1[2]-p2[2])**2)
     
     def vectorize(self, p1, p2):
         delta = p1 - p2
-        norm = np.sqrt(delta[0]**2+delta[1]**2+delta[2]**2)
+        norm = self.distance(p1,p2)
         return delta/norm
 
 def arguments():
@@ -64,6 +65,7 @@ class CopterHandler():
     def __init__(self, num):
         self.num = num
         self.copters = []
+        self.poses = []
         for n in range(1, num + 1):
             self.copters.append(CopterController(n))
 
@@ -77,6 +79,12 @@ class CopterHandler():
             controller.arrived_all = True
             self.arrived_num = 0
 
+    def update_poses(self):
+        ps = []
+        for copter_controller in self.copters:
+            ps.append(copter_controller.pose)
+        return ps
+
     def loop(self):
         for copter_controller in self.copters:
             copter_controller.dt = time.time() - copter_controller.t0
@@ -85,12 +93,12 @@ class CopterHandler():
             if copter_controller.state == "disarm":
                 copter_controller.arming(True)
             elif copter_controller.state == "takeoff":
-                copter_controller.takeoff()
+                copter_controller.takeoff(self.update_poses())
             elif copter_controller.state == "tookoff":
-                copter_controller.make_formation()
-                copter_controller.follow_waypoint_list()
+                #copter_controller.make_formation()
+                copter_controller.follow_waypoint_list(self.update_poses())
             elif copter_controller.state == "arrival":
-                copter_controller.move_to_point(copter_controller.current_waypoint)
+                copter_controller.move_to_point(copter_controller.current_waypoint, self.update_poses())
             copter_controller.pub_pt.publish(copter_controller.pt)
             self.arrived_all_check(copter_controller)
             rospy.loginfo("ariivednum : %d" % self.arrived_num)
@@ -112,11 +120,11 @@ class CopterController():
 
         # params
         self.p_gain = 1
-        self.i_gain = 0.2
-        self.d_gain = 0.8
+        self.i_gain = 0.03
+        self.d_gain = 0.005
         self.prev_error = np.array([0., 0., 0.])
         self.max_velocity = 5
-        self.arrival_radius = 0.6
+        self.arrival_radius = 0.2
         # self.waypoint_list = [np.array([6., 7., 6.]), np.array([0., 14., 7.]), np.array([18., 14., 7.]), np.array([0., 0., 5.])]
         self.waypoint_list = [np.array([41., -72., 5.]), np.array([41., 72., 5]), np.array([-41., 72., 5]), np.array([-41., -72.0, 5]), np.array([0, -72., 5])] # 124, 20, 5
 
@@ -126,11 +134,13 @@ class CopterController():
         self.mavros_state = State()
         self.subscribe_on_topics()
 
+        self.pf = PotentialField(num,1,35)
+
         self.formation = None
 
     # взлет коптера
-    def takeoff(self):
-        error = self.move_to_point(self.current_waypoint)
+    def takeoff(self, poses):
+        error = self.move_to_point(self.current_waypoint, poses)
         if error < self.arrival_radius:
             self.arrived = True
         if self.arrived and self.arrived_all:
@@ -139,10 +149,10 @@ class CopterController():
             self.state = "tookoff"
 
 
-    def make_formation(self):
-        print("formation is %s"%(self.formation))
+    # def make_formation(self):
+    #     print("formation is %s"%(self.formation))
 
-    def move_to_point(self, common_point):
+    def move_to_point(self, common_point, poses):
         if self.formation is not None:
             point = common_point + np.array([
                 float(self.formation[self.num * 3 - 1]),
@@ -159,18 +169,27 @@ class CopterController():
         self.prev_error = error
 
         velocity = self.p_gain * error + differential + integral
+
         velocity_norm = np.linalg.norm(velocity)
         if velocity_norm > self.max_velocity:
             velocity = velocity / velocity_norm * self.max_velocity
+
+        if (poses != None):
+            pf_vector = self.pf.update(poses)
+            if(np.max(pf_vector)>0):
+                print(velocity, "\t PF: ", pf_vector)
+            velocity += pf_vector
+            print(velocity)
+        
         self.set_vel(velocity)
         return np.linalg.norm(error)
 
-    def follow_waypoint_list(self):
+    def follow_waypoint_list(self, poses):
         if self.formation != "|":
 
-            error = self.move_to_point(self.current_waypoint)
-            print("point %s" % (self.pose))
-            print("target point %s" % (self.current_waypoint))
+            error = self.move_to_point(self.current_waypoint, poses)
+            #print("point %s" % (self.pose))
+            #print("target point %s" % (self.current_waypoint))
             if error < self.arrival_radius:
                 self.arrived = True
             if self.arrived and self.arrived_all:
@@ -197,7 +216,7 @@ class CopterController():
 
     def formation_cb(self, msg):
         formation = msg.data.split(sep = " ")
-        print("formation: ", formation)
+        #print("formation: ", formation)
         self.formation = formation
 
     def velocity_cb(self, msg):
