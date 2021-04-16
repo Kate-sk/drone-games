@@ -32,13 +32,16 @@ class CopterController():
         self.dt = 0
 
         # params
-        self.p_gain = 2
+        self.p_gain = 1
+        self.i_gain = 0.2
+        self.d_gain = 0.8
+        self.prev_error = np.array([0., 0., 0.])
         self.max_velocity = 5
         self.arrival_radius = 0.6
         # self.waypoint_list = [np.array([6., 7., 6.]), np.array([0., 14., 7.]), np.array([18., 14., 7.]), np.array([0., 0., 5.])]
-        self.waypoint_list = [np.array([41., -72., 50.]), np.array([41., 72., 50]), np.array([-41., 72., 50]), np.array([-41., -72.0, 50]), np.array([0, -72., 50])] # 124, 20, 50
+        self.waypoint_list = [np.array([41., -72., 5.]), np.array([41., 72., 5]), np.array([-41., 72., 5]), np.array([-41., -72.0, 5]), np.array([0, -72., 5])] # 124, 20, 5
 
-        self.current_waypoint = np.array([0., 0., 50.])
+        self.current_waypoint = np.array([0., 0., 5.])
         self.pose = np.array([0., 0., 0.])
         self.velocity = np.array([0., 0., 0.])
         self.mavros_state = State()
@@ -77,8 +80,14 @@ class CopterController():
 
 
     def move_to_point(self, point):
-        error = self.pose - point
-        velocity = -self.p_gain * error
+        
+        error = (self.pose - point) * -1
+
+        integral = self.i_gain*self.dt*error
+        differential = self.d_gain/self.dt*(error - self.prev_error)
+        self.prev_error = error
+
+        velocity = self.p_gain * error + differential + integral
         velocity_norm = np.linalg.norm(velocity)
         if velocity_norm > self.max_velocity:
             velocity = velocity / velocity_norm * self.max_velocity
@@ -86,14 +95,15 @@ class CopterController():
         return np.linalg.norm(error)
 
     def follow_waypoint_list(self):
-        error = self.move_to_point(self.current_waypoint)
-        print("point %s" % (self.pose))
-        print("target point %s" % (self.current_waypoint))
-        if error < self.arrival_radius:
-            if len(self.waypoint_list) != 0:
-                self.current_waypoint = self.waypoint_list.pop(0)
-            else:
-                self.state = "arrival"
+        if self.formation != "|":
+            error = self.move_to_point(self.current_waypoint)
+            print("point %s" % (self.pose))
+            print("target point %s" % (self.current_waypoint))
+            if error < self.arrival_radius:
+                if len(self.waypoint_list) != 0:
+                    self.current_waypoint = self.waypoint_list.pop(0)
+                else:
+                    self.state = "arrival"
 
     def subscribe_on_topics(self):
         # локальная система координат, точка отсчета = место включения аппарата
@@ -110,8 +120,13 @@ class CopterController():
         self.pose = np.array([pose.x, pose.y, pose.z])
 
     def formation_cb(self, msg):
-        formation = msg.data
-        self.formation = formation.split(sep = " ")[1]
+        formation = msg.data.split(sep = " ")
+        print(formation)
+        self.formation = formation[1]
+        n = 1
+        #for i in range(6):
+        #    self.data[n] = formation[n:(n+3)]
+        #    n+=3
 
     def velocity_cb(self, msg):
         velocity = msg.twist.linear
