@@ -34,7 +34,7 @@ fi
 echo "waiting ..."
 sleep 3
 
-./examples/my_test.py $mode
+./examples/my_test.py $mode $num
 
 read -p "Press enter to stop ..."
 
