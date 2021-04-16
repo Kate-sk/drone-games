@@ -37,14 +37,8 @@ class CopterHandler():
         self.arrived_num = 0
         self.arrived_all = False
 
-    def arrived_all_check(self, controller):
-        if controller.arrived:
-            self.arrived_num += 1
-        if self.arrived_num == self.num:
-            controller.arrived_all = True
-            self.arrived_num = 0
-
     def loop(self):
+        self.arrived_num = 0
         for copter_controller in self.copters:
             copter_controller.dt = time.time() - copter_controller.t0
             copter_controller.set_mode("OFFBOARD")
@@ -58,9 +52,15 @@ class CopterHandler():
                 copter_controller.follow_waypoint_list()
             elif copter_controller.state == "arrival":
                 copter_controller.move_to_point(copter_controller.current_waypoint)
+            elif copter_controller.state == "land":
+                copter_controller.land()
             copter_controller.pub_pt.publish(copter_controller.pt)
-            self.arrived_all_check(copter_controller)
-            rospy.loginfo("ariivednum : %d" % self.arrived_num)
+
+            if copter_controller.arrived:
+                self.arrived_num += 1
+        if self.arrived_num == self.num:
+            for copter_controller in self.copters:
+                copter_controller.arrived_all = True
 
 
 class CopterController():
@@ -86,6 +86,7 @@ class CopterController():
         self.arrival_radius = 0.6
         # self.waypoint_list = [np.array([6., 7., 6.]), np.array([0., 14., 7.]), np.array([18., 14., 7.]), np.array([0., 0., 5.])]
         self.waypoint_list = [np.array([41., -72., 5.]), np.array([41., 72., 5]), np.array([-41., 72., 5]), np.array([-41., -72.0, 5]), np.array([0, -72., 5])] # 124, 20, 5
+        # self.waypoint_list = [np.array([41., -72., 5.])] # 124, 20, 5
 
         self.current_waypoint = np.array([0., 0., 5.])
         self.pose = np.array([0., 0., 0.])
@@ -105,6 +106,11 @@ class CopterController():
             self.arrived_all = False
             self.state = "tookoff"
 
+    def land(self):
+        self.current_waypoint = np.array([self.pose[0], self.pose[1], 0])
+        error = self.move_to_point(self.current_waypoint)
+        if error < self.arrival_radius:
+            self.state = "landed"
 
     def make_formation(self):
         print("formation is %s"%(self.formation))
@@ -118,6 +124,7 @@ class CopterController():
             ])
         else:
             point = common_point
+        # point = common_point
 
         error = (self.pose - point) * -1
 
@@ -144,9 +151,13 @@ class CopterController():
                 self.arrived = False
                 self.arrived_all = False
                 if len(self.waypoint_list) != 0:
+                    buf = self.current_waypoint
                     self.current_waypoint = self.waypoint_list.pop(0)
+                    self.waypoint_list.append(buf)
                 else:
                     self.state = "arrival"
+        else:
+            self.state = "land"
 
     def subscribe_on_topics(self):
         # локальная система координат, точка отсчета = место включения аппарата
@@ -182,7 +193,8 @@ class CopterController():
                 self.service_proxy("cmd/arming", CommandBool, to_arm)
         if self.dt > 10:
             self.state = "takeoff"
-            self.current_waypoint = np.array([self.pose[0], self.pose[1], 5.])
+            # self.current_waypoint = np.array([self.pose[0], self.pose[1], 5.])
+            self.current_waypoint = np.array([0, -72, 5.])
 
     def set_mode(self, new_mode):
         if self.mavros_state is not None and self.mavros_state.mode != new_mode:
