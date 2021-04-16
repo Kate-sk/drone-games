@@ -19,6 +19,39 @@ freq = 20  # Герц, частота посылки управляющих ко
 node_name = "offboard_node"
 lz = {}
 
+class PotentialField():
+    def __init__(self, drone_id, radius, k_push):
+        self.r = radius
+        self.k = k_push
+        self.ignore = drone_id
+        self.primary_pose = np.array([0., 0., 0.])
+
+    def update(self, poses):
+        self.primary_pose = poses[self.ignore]
+        potential_poses = poses.remove(self.primary_pose)
+        distances = self.calc_distances(potential_poses)
+        danger_poses = [ [pose, i] for i, pose in enumerate(potential_poses) if distances[i] <= self.r ]
+        vec = np.array([0., 0., 0.])
+        for t in danger_poses:
+            pose = t[0]
+            drone_id = t[1]
+            amplifier = self.k * (self.r - distances[drone_id])**2
+            vec += self.vectorize(self.primary_pose, pose)*amplifier
+        return vec
+
+    def calc_distances(self, poses):
+        dist = []
+        for pose in poses:
+            dist.append(self.distanceTo(self.primary_pose, pose))
+        return dist
+
+    def distanceTo(self, p1, p2):
+        return np.sqrt((p1[0]-p2[0])**2 + (p1[1]-p2[1])**2 +(p1[2]-p2[2])**2)
+    
+    def vectorize(self, p1, p2):
+        delta = p1 - p2
+        norm = np.sqrt(delta[0]**2+delta[1]**2+delta[2]**2)
+        return delta/norm
 
 class CopterController():
     def __init__(self):
