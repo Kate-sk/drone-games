@@ -95,10 +95,22 @@ class CopterHandler():
                 self.letter_points.append([float(self.formation[i * 3 - 1]),
                                            float(self.formation[i * 3]),
                                            float(self.formation[i * 3 + 1])])
+            bias = self.check_for_y_bias(self.letter_points)
+            self.letter_points = [[arr[0], arr[1] - bias, arr[2]] for arr in self.letter_points]
             self.letter_points = sorted(self.letter_points, key=lambda x: (x[2]), reverse=True)
         else:
             self.land = True
         self.mutex.release()
+
+    def check_for_y_bias(self, point_list):
+        y_arr = [x[1] for x in point_list]
+        min_y = np.min(y_arr)
+        max_y = np.max(y_arr)
+        if max_y > 10:
+            return max_y - 9
+        if min_y < -10:
+            return min_y + 9
+        return 0
 
     def distance(self, point1, point2):
         return np.linalg.norm(point1 - point2)
@@ -134,7 +146,7 @@ class CopterHandler():
             if self.land:
                 copter_controller.land()
             elif copter_controller.state == "disarm":
-                copter_controller.arming(True, 1.0*copter_controller.num)
+                copter_controller.arming(True, 1.0 + 0.6*copter_controller.num)
             elif copter_controller.state == "takeoff":
                 copter_controller.takeoff(self.update_poses())
             elif copter_controller.state == "tookoff":
@@ -152,7 +164,7 @@ class CopterHandler():
         if self.arrived_num == self.num:
             for copter_controller in self.copters:
                 copter_controller.arrived_all = True
-            self.follow_the_first = True
+            # self.follow_the_first = True
         if self.follow_the_first:
             # print("self.follow_the_first: ", self.follow_the_first)
             for i in range(1, len(self.copters)):
@@ -178,13 +190,13 @@ class CopterController():
         # params                    #8 m/s      #20 m/s
         self.p_gain =  3.2/3             #1.4        #3.2/3
         self.i_gain =  1.3/3             #0.023      #1.3/3
-        self.d_gain =  0.4/3             #0.0069     #0.6/3
+        self.d_gain =  0.42/3             #0.0069     #0.6/3
 
 
         self.prev_error = np.array([0., 0., 0.])
 
         self.max_velocity = 20
-        self.arrival_radius = 0.55
+        self.arrival_radius = 0.4
 
         self.init_point = True
         self.waypoint_list = [np.array([41., -72., 15.]), np.array([41., 72., 15]), np.array([-41., 72., 15]), np.array([-41., -72.0, 15])]
@@ -231,7 +243,13 @@ class CopterController():
         self.prev_dt = self.dt
 
         # Error
-        point = common_point + self.letter_point_shift
+        modified_letter_point_shift = copy.deepcopy(self.letter_point_shift)
+        if common_point[0] < 0:
+            modified_letter_point_shift[0] *= -1
+        if common_point[1] > 0:
+            modified_letter_point_shift[1] *= -1
+
+        point = common_point + modified_letter_point_shift
         error = (self.pose - point) * -1
 
         # Attraction
