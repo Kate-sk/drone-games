@@ -8,6 +8,7 @@ import math
 import numpy as np
 import argparse
 import copy
+import threading
 
 from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import TwistStamped, PoseStamped
@@ -77,9 +78,11 @@ class CopterHandler():
         self.formation_center_pose = np.array([0, 0, 0])
         self.skip_waypoint = False
         self.follow_the_first = False
+        self.mutex = threading.Lock()
         rospy.Subscriber("/formations_generator/formation", String, self.formation_cb)
 
     def formation_cb(self, msg):
+        self.mutex.acquire()
         formation = msg.data.split(sep=" ")
         print("formation: ", formation)
         if self.formation is not None and formation[1] != self.formation[1]:
@@ -95,6 +98,7 @@ class CopterHandler():
             self.letter_points = sorted(self.letter_points, key=lambda x: (x[2]), reverse=True)
         else:
             self.land = True
+        self.mutex.release()
 
     def distance(self, point1, point2):
         return np.linalg.norm(point1 - point2)
@@ -115,6 +119,7 @@ class CopterHandler():
         return ps
       
     def loop(self):
+        self.mutex.acquire()
         self.arrived_num = 0
         formation_center_pose = np.array([0, 0, 0], dtype=float)
         for copter_controller, i in zip(self.copters, range(1, self.num + 1)):
@@ -152,6 +157,7 @@ class CopterHandler():
             # print("self.follow_the_first: ", self.follow_the_first)
             for i in range(1, len(self.copters)):
                 self.copters[i].velocity_2_follow = self.copters[0].velocity_independent
+        self.mutex.release()
 
 
 class CopterController():

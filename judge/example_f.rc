@@ -4,4 +4,4 @@ type="mc"
 world="formation.world"
 num=6
 
-u_cmd="python3 /home/dronehack/drone-games/examples/my_test.py $num"
+u_cmd="python3 $HOME/drone-games/examples/my_test.py $num"

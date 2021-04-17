@@ -2,7 +2,7 @@ sim="formation"
 type="mc"
 
 world="formation_1.world"
-num=12
-#num=24
+#num=12
+num=24
 
-u_cmd="python3 /home/dronehack/drone-games/examples/my_test.py $num"
+u_cmd="python3 $HOME/drone-games/examples/my_test.py $num"
