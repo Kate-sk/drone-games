@@ -1,24 +1,36 @@
-from PyQt5.QtCore import QTimer, QTime, Qt
+from PyQt5.QtCore import QTimer, QTime, Qt, pyqtSignal
 from PyQt5.QtGui import QColor, QFont
 from PyQt5.QtWidgets import QWidget, QTableWidget, QGridLayout, QTableWidgetItem, QMessageBox
 
 COLUMNS_WIDTH = 120
+COLOR_UNUSED = QColor(50, 48, 48)
 
 
 class MainWidget(QWidget):
+    show_msg = pyqtSignal()
 
     def __init__(self, formation):
         super().__init__()
 
+        self.formation = formation
+
         layout = QGridLayout()
+
+        self.show_msg.connect(self.show_message)
+        self.final_string = None
 
         self.table = QTableWidget()
         self.table.setFixedWidth(COLUMNS_WIDTH * 4 + 2)
         self.table.horizontalHeader().hide()
         self.table.verticalHeader().hide()
 
+        self.table.setStyleSheet("QTableWidget { background-color: #808080; color: white; }")
+
         self.table.setColumnCount(4)
-        self.table.setRowCount(6)
+        if formation:
+            self.table.setRowCount(6)
+        else:
+            self.table.setRowCount(5)
         for i in range(self.table.colorCount()):
             self.table.setColumnWidth(i, COLUMNS_WIDTH)
 
@@ -30,34 +42,80 @@ class MainWidget(QWidget):
         timer_item = QTableWidgetItem("00:00")
         timer_item.setData(Qt.FontRole, QFont("", 20))
         timer_item.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
+        timer_item.setFlags(Qt.NoItemFlags)
         self.table.setSpan(0, 0, 1, 4)
         self.table.setItem(0, 0, timer_item)
 
+        fees_item = QTableWidgetItem("Штрафы")
+        fees_item.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
+        fees_item.setFlags(Qt.NoItemFlags)
         self.table.setSpan(1, 0, 1, 4)
-        self.table.setItem(1, 0, QTableWidgetItem("Штрафы"))
+        self.table.setItem(1, 0, fees_item)
 
-        self.table.setItem(2, 0, QTableWidgetItem("Столкновения"))
+        coll_it = QTableWidgetItem("Столкновения")
+        coll_it.setFlags(Qt.NoItemFlags)
+        self.table.setItem(2, 0, coll_it)
+        coll_it = QTableWidgetItem("0")
+        coll_it.setFlags(Qt.NoItemFlags)
+        self.table.setItem(2, 1, coll_it)
 
         if formation:
-            self.table.setItem(2, 2, QTableWidgetItem("Вылеты"))
+            out_it = QTableWidgetItem("Вылеты")
+            out_it.setFlags(Qt.NoItemFlags)
+            self.table.setItem(2, 2, out_it)
+            out_it = QTableWidgetItem("0")
+            out_it.setFlags(Qt.NoItemFlags)
+            self.table.setItem(2, 3, out_it)
         else:
-            self.tableWidget.setItem(2, 2, QTableWidgetItem())
-            self.tableWidget.setItem(2, 3, QTableWidgetItem())
-            self.tableWidget.item(2, 2).setBackground(QColor(250, 250, 250))
-            self.tableWidget.item(2, 3).setBackground(QColor(250, 250, 250))
+            unu_it = QTableWidgetItem()
+            unu_it.setFlags(Qt.NoItemFlags)
+            self.table.setItem(2, 2, unu_it)
+            unu_it = QTableWidgetItem()
+            unu_it.setFlags(Qt.NoItemFlags)
+            self.table.setItem(2, 3, unu_it)
+            self.table.item(2, 2).setBackground(COLOR_UNUSED)
+            self.table.item(2, 3).setBackground(COLOR_UNUSED)
 
         self.table.setSpan(3, 0, 1, 4)
-        self.table.setItem(3, 0, QTableWidgetItem("Зоны"))
+        zones_it = QTableWidgetItem("Зоны")
+        zones_it.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
+        zones_it.setFlags(Qt.NoItemFlags)
+        self.table.setItem(3, 0, zones_it)
 
         if formation:
             self.table.setSpan(4, 0, 2, 1)
             self.table.setSpan(4, 1, 2, 1)
             self.table.setSpan(4, 2, 2, 1)
             self.table.setSpan(4, 3, 2, 1)
-            self.table.setItem(4, 0, QTableWidgetItem("N"))
-            self.table.setItem(4, 1, QTableWidgetItem("СКО\nтекущее"))
-            self.table.setItem(4, 2, QTableWidgetItem("СКО\nсреднее"))
-            self.table.setItem(4, 3, QTableWidgetItem("Время\nперестроения"))
+            n_it = QTableWidgetItem("N")
+            n_it.setFlags(Qt.NoItemFlags)
+            self.table.setItem(4, 0, n_it)
+            sco_cur_it = QTableWidgetItem("СКО\nтекущее")
+            sco_cur_it.setFlags(Qt.NoItemFlags)
+            self.table.setItem(4, 1, sco_cur_it)
+            sco_mean_it = QTableWidgetItem("СКО\nсреднее")
+            sco_mean_it.setFlags(Qt.NoItemFlags)
+            self.table.setItem(4, 2, sco_mean_it)
+            t_it = QTableWidgetItem("Время\nперестроения")
+            t_it.setFlags(Qt.NoItemFlags)
+            self.table.setItem(4, 3, t_it)
+        else:
+            # self.table.setSpan(4, 1, 2, 1)
+            # self.table.setSpan(4, 2, 2, 1)
+            # self.table.setSpan(4, 3, 2, 1)
+            n_it = QTableWidgetItem("N")
+            n_it.setFlags(Qt.NoItemFlags)
+            self.table.setItem(4, 0, n_it)
+            t_it = QTableWidgetItem("Время")
+            t_it.setFlags(Qt.NoItemFlags)
+            self.table.setItem(4, 1, t_it)
+            f_it = QTableWidgetItem("Штраф")
+            f_it.setFlags(Qt.NoItemFlags)
+            self.table.setItem(4, 2, f_it)
+            unu_it = QTableWidgetItem()
+            unu_it.setFlags(Qt.NoItemFlags)
+            self.table.setItem(4, 3, unu_it)
+            self.table.item(4, 3).setBackground(COLOR_UNUSED)
 
         layout.addWidget(self.table)
 
@@ -69,27 +127,74 @@ class MainWidget(QWidget):
         timer_item = QTableWidgetItem(self.time.toString("mm:ss"))
         timer_item.setData(Qt.FontRole, QFont("", 20))
         timer_item.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
+        timer_item.setFlags(Qt.NoItemFlags)
         self.table.setItem(0, 0, timer_item)
 
     def add_row(self):
         rc = self.table.rowCount()
         self.table.insertRow(rc)
-        self.table.setItem(rc, 0, QTableWidgetItem(str(rc - 5)))
+        if self.formation:
+            it = QTableWidgetItem(str(rc - 5))
+            it.setFlags(Qt.NoItemFlags)
+            self.table.setItem(rc, 0, it)
+            unu_it = QTableWidgetItem()
+            unu_it.setFlags(Qt.NoItemFlags)
+            self.table.setItem(rc, 1, unu_it)
+            unu_it = QTableWidgetItem()
+            unu_it.setFlags(Qt.NoItemFlags)
+            self.table.setItem(rc, 2, unu_it)
+            unu_it = QTableWidgetItem()
+            unu_it.setFlags(Qt.NoItemFlags)
+            self.table.setItem(rc, 3, unu_it)
+        else:
+            it = QTableWidgetItem(str(rc - 4))
+            it.setFlags(Qt.NoItemFlags)
+            self.table.setItem(rc, 0, it)
+            unu_it = QTableWidgetItem()
+            unu_it.setFlags(Qt.NoItemFlags)
+            self.table.setItem(rc, 1, unu_it)
+            unu_it = QTableWidgetItem()
+            unu_it.setFlags(Qt.NoItemFlags)
+            self.table.setItem(rc, 2, unu_it)
+            unu_it = QTableWidgetItem()
+            unu_it.setFlags(Qt.NoItemFlags)
+            self.table.setItem(rc, 3, unu_it)
+            self.table.item(rc, 3).setBackground(COLOR_UNUSED)
 
     def update_collisions(self, data):
-        self.table.setItem(2, 1, QTableWidgetItem(str(data)))
+        data_it = QTableWidgetItem(str(data))
+        data_it.setFlags(Qt.NoItemFlags)
+        self.table.setItem(2, 1, data_it)
 
     def update_side_time(self, data):
-        self.table.setItem(2, 3, QTableWidgetItem(str(round(float(data), 2))))
+        data_it = QTableWidgetItem(str(round(float(data), 2)))
+        data_it.setFlags(Qt.NoItemFlags)
+        self.table.setItem(2, 3, data_it)
 
     def update_msd_current(self, data):
-        self.table.setItem(self.table.rowCount() - 1, 1, QTableWidgetItem(str(round(float(data), 2))))
+        data_it = QTableWidgetItem(str(round(float(data), 2)))
+        data_it.setFlags(Qt.NoItemFlags)
+        self.table.setItem(self.table.rowCount() - 1, 1, data_it)
 
     def update_msd_overall(self, data):
-        self.table.setItem(self.table.rowCount() - 1, 2, QTableWidgetItem(str(round(float(data), 2))))
+        data_it = QTableWidgetItem(str(round(float(data), 2)))
+        data_it.setFlags(Qt.NoItemFlags)
+        self.table.setItem(self.table.rowCount() - 1, 2, data_it)
 
     def update_reformation(self, data):
-        self.table.setItem(self.table.rowCount() - 1, 3, QTableWidgetItem(str(round(float(data), 2))))
+        data_it = QTableWidgetItem(str(round(float(data), 2)))
+        data_it.setFlags(Qt.NoItemFlags)
+        self.table.setItem(self.table.rowCount() - 1, 3, data_it)
+
+    def update_times(self, data):
+        data_it = QTableWidgetItem(str(round(float(data), 2)))
+        data_it.setFlags(Qt.NoItemFlags)
+        self.table.setItem(self.table.rowCount() - 1, 1, data_it)
+
+    def update_passes(self, data):
+        data_it = QTableWidgetItem(str(round(float(data), 2)))
+        data_it.setFlags(Qt.NoItemFlags)
+        self.table.setItem(self.table.rowCount() - 1, 2, data_it)
 
     def collisions_cb(self, data):
         self.update_collisions(data.data)
@@ -107,13 +212,34 @@ class MainWidget(QWidget):
     def reformation_cb(self, data):
         self.update_reformation(data.data)
 
+    def passes_cb(self, data):
+        self.update_passes(data.data)
+
+    def times_cb(self, data):
+        self.update_times(data.data)
+        self.add_row()
+
     # noinspection PyMethodMayBeStatic
     def final_cb(self, data):
-        string = "FINAL SCORE: {} \n" \
-                 "___________________________ \n" \
-                 "NOMINATIONS\n" \
-                 "SYNCHRONICITY: {} \n" \
-                 "EFFICIENCY: {} \n" \
-                 "SPEED: {}".format(*tuple(data.data.split('::')))
-        print(string)
-        QMessageBox.information(None, "RESULT", string, QMessageBox.Ok)
+        dds = data.data.split('::')
+        if len(dds) == 4:
+            string = "FINAL SCORE: {} \n" \
+                     "___________________________ \n" \
+                     "NOMINATIONS\n" \
+                     "SYNCHRONICITY: {} \n" \
+                     "EFFICIENCY: {} \n" \
+                     "SPEED: {}".format(*tuple(dds))
+        elif len(dds) == 3:
+            string = "FINAL SCORE: {} \n" \
+                     "___________________________ \n" \
+                     "NOMINATIONS\n" \
+                     "ACCURACY: {} \n" \
+                     "SPEED: {}".format(*tuple(dds))
+        else:
+            string = "BAD DATA"
+        # print(string)
+        self.final_string = string
+        self.show_msg.emit()
+
+    def show_message(self):
+        QMessageBox.information(self.parent(), "RESULT", self.final_string, QMessageBox.Ok)

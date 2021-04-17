@@ -6,6 +6,7 @@
       <camera name="user_camera">
         <pose>-11. -83. 4. 0.0 0.238 0.757</pose>
         <track_visual>
+          <!--<name>barycenter</name>-->
           <static>true</static>
           <use_model_frame>true</use_model_frame>
           <xyz>-30 7 7</xyz>
