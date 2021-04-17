@@ -166,8 +166,8 @@ def final_print(w=False):
     global print_once, all_time, side_time
 
     # if all_time == 0:
-    # noinspection PyTypeChecker
     if all_timer is not None:
+        # noinspection PyTypeChecker
         all_time = monotonic() - all_timer
 
     if side_timer is not None:
@@ -190,7 +190,7 @@ def final_print(w=False):
               "___________________________ \n"
               "FINAL SCORE:             {} \n"
               "___________________________ \n"
-              "NOMINATIONS:                \n"
+              "NOMINATIONS                 \n"
               "SYNCHRONICITY:           {} \n"
               "EFFICIENCY:              {} \n"
               "SPEED:                   {}".format(all_time,
@@ -309,7 +309,7 @@ def _gz_states_cb(_states):
 
     twists = np.array(twists)
     mean_twists = twists.mean(axis=0)
-    r = Rotation.from_matrix(get_new_basis(mean_twists))
+    r = Rotation.from_matrix(get_new_basis(mean_twists).T)
     rel_mean_poses = calculate_relative_positions(poses, r)
 
     if FORMATION is not None and formation_zone:

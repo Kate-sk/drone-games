@@ -2,6 +2,7 @@
 # coding=utf8
 import argparse
 import csv
+import time
 from pathlib import Path
 from subprocess import Popen
 from time import monotonic
@@ -42,12 +43,55 @@ counters = {}
 timers = {}
 times = []
 
+collisions_pub, passes_pub, times_pub, final_pub = None, None, None, None
 parser_args = None
 
 
-class Judge:
-    def __init__(self) -> None:
+class RaceJudge:
+    def __init__(self, model, num, counter) -> None:
         super().__init__()
+
+        Popen(["/opt/ros/noetic/bin/rosrun", "topic_tools", "throttle", "messages",
+               "/gazebo/model_states", "20", "/gazebo/model_states_throttled"], shell=False)
+
+        set_model(model)
+        set_num(num)
+        set_filename(counter)
+
+        rospy.init_node("follower_node")
+        rospy.on_shutdown(on_shutdown_cb)
+
+        subscribe()
+        init_publishers()
+
+        # # noinspection PyUnresolvedReferences
+        # FILENAME = FILENAME + str(parser_args.counter)
+        # # noinspection PyUnresolvedReferences
+        # MODEL = parser_args.model
+        # # noinspection PyUnresolvedReferences
+        # NUM = parser_args.num
+
+        try:
+            main_loop()
+        except rospy.ROSInterruptException:
+            pass
+
+        rospy.spin()
+
+
+def set_model(model):
+    global MODEL
+    MODEL = model
+
+
+def set_num(num):
+    global NUM
+    NUM = num
+
+
+def set_filename(counter):
+    global FILENAME
+    FILENAME = FILENAME + str(counter)
 
 
 def main_loop():
@@ -69,16 +113,8 @@ def main_loop():
     rate.sleep()
 
 
-def final_print(w=False):
-    global all_time, print_once
-
-    # all_time = sum(times)  # TODO FIX
-    if all_timer is not None:
-        # noinspection PyTypeChecker
-        all_time = monotonic() - all_timer
-
+def count_pass_penalties():
     wpl = []
-
     # for v in (np.array(list(map(lambda x: np.array(x) - 1, window_passes.values())))):
     #     pass_penalties.append(sum(range(v + 1)))
     for wp in window_passes.values():
@@ -87,7 +123,18 @@ def final_print(w=False):
     pass_penalties = []
     for v in wpl:
         pass_penalties.append(sum(range(v)))
-    pass_penalties = np.array(pass_penalties)
+    return np.array(pass_penalties)
+
+
+def final_print(w=False):
+    global all_time, print_once
+
+    # all_time = sum(times)
+    if all_timer is not None:
+        # noinspection PyTypeChecker
+        all_time = monotonic() - all_timer
+
+    pass_penalties = count_pass_penalties()
 
     final_score = all_time + A * collisions_amount + B * sum(pass_penalties)
 
@@ -95,12 +142,25 @@ def final_print(w=False):
         print("TIME:            {} \n"
               "TIMES:           {} \n"
               "COLLISIONS:      {} \n"
-              "PASS PENALTIES:  {} \n\n"
-              "FINAL SCORE:     {}".format(all_time,
+              "PASS PENALTIES:  {} \n"
+              "___________________ \n"
+              "FINAL SCORE:     {} \n"
+              "___________________ \n"
+              "NOMINATIONS         \n"
+              "ACCURACY:        {} \n"
+              "SPEED:           {}".format(all_time,
                                            times,
                                            collisions_amount,
                                            pass_penalties,
-                                           final_score))
+                                           final_score,
+                                           sum(pass_penalties),
+                                           all_time))
+
+        string = "::".join(
+            list(map(str, [np.round(final_score), np.round(sum(pass_penalties), 2), np.round(all_time, 2)])))
+        # noinspection PyUnresolvedReferences
+        final_pub.publish(string)
+
     return all_time, times, collisions_amount, pass_penalties, final_score, window_passes
 
 
@@ -109,6 +169,14 @@ def subscribe():
     rospy.Subscriber("/path_generator/central", String, _path_center_cb)
     rospy.Subscriber("/path_generator/walls", String, _walls_cb)
     rospy.Subscriber("/bumper_states", ContactsState, _collision_cb)
+
+
+def init_publishers():
+    global collisions_pub, passes_pub, times_pub, final_pub
+    collisions_pub = rospy.Publisher('/collisions', String, queue_size=10)
+    passes_pub = rospy.Publisher('/passes', String, queue_size=10)
+    times_pub = rospy.Publisher('/times', String, queue_size=10)
+    final_pub = rospy.Publisher('/final', String, queue_size=10)
 
 
 def _path_center_cb(_path_center):
@@ -159,6 +227,7 @@ def get_new_basis(normal):
     return np.array([np.cross(ey, ez), ey, ez])
 
 
+# noinspection PyUnresolvedReferences
 def _collision_cb(_contacts):
     global last_collision_time, collisions_amount
 
@@ -174,10 +243,12 @@ def _collision_cb(_contacts):
             if last_collision_time is None:
                 collisions_amount += 1
                 last_collision_time = monotonic()
+                collisions_pub.publish(str(collisions_amount))
                 write_all()
             elif monotonic() - last_collision_time > COLLISION_DELTA_TIME:
                 collisions_amount += 1
                 last_collision_time = monotonic()
+                collisions_pub.publish(str(collisions_amount))
                 write_all()
             # print(collisions_amount)
 
@@ -220,6 +291,11 @@ def _gz_states_cb(_states):
                     # print(window_passes)
 
                     if set(wall_passes[wall_name]) == set(list(poses.keys())):
+                        # noinspection PyUnresolvedReferences
+                        passes_pub.publish(str(sum(count_pass_penalties())))
+                        time.sleep(.5)
+                        # noinspection PyUnresolvedReferences
+                        times_pub.publish(str(monotonic() - timers[wall_name]))
                         times.append(monotonic() - timers[wall_name])
                         write_all()
                         # print(times)
@@ -310,25 +386,5 @@ def arguments():
 
 if __name__ == '__main__':
     arguments()
-
-    Popen(["/opt/ros/noetic/bin/rosrun", "topic_tools", "throttle", "messages",
-           "/gazebo/model_states", "20", "/gazebo/model_states_throttled"], shell=False)
-
-    rospy.init_node("follower_node")
-    rospy.on_shutdown(on_shutdown_cb)
-
-    subscribe()
-
     # noinspection PyUnresolvedReferences
-    FILENAME = FILENAME + str(parser_args.counter)
-    # noinspection PyUnresolvedReferences
-    MODEL = parser_args.model
-    # noinspection PyUnresolvedReferences
-    NUM = parser_args.num
-
-    try:
-        main_loop()
-    except rospy.ROSInterruptException:
-        pass
-
-    rospy.spin()
+    RaceJudge(parser_args.model, parser_args.num, parser_args.counter)

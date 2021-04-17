@@ -1,6 +1,20 @@
 <?xml version="1.0" ?>
 <sdf version='1.7'>
   <world name='default'>
+    
+    <gui>
+      <camera name="user_camera">
+        <pose>-9.5 -11.7 19.7 0.0 0.95 0.84</pose>
+        <track_visual>
+          <!--<name>barycenter</name>-->
+          <static>true</static>
+          <use_model_frame>true</use_model_frame>
+          <xyz>-30 7 7</xyz>
+          <inherit_yaw>true</inherit_yaw>
+        </track_visual>
+      </camera>
+    </gui>
+  
     <scene>
       <ambient>0.8 0.8 0.8 1</ambient>
       <grid>0</grid>
@@ -2156,13 +2170,7 @@
       </link>
       <pose>0 0 0 0 -0 0</pose>
     </model>
-    <gui fullscreen='0'>
-      <camera name='user_camera'>
-        <pose>82.4676 -139.928 174.221 -0 0.993803 1.71103</pose>
-        <view_controller>orbit</view_controller>
-        <projection_type>perspective</projection_type>
-      </camera>
-    </gui>
+    
     <model name='wall_1_05'>
       <link name='link_clone_10'>
         <self_collide>0</self_collide>
