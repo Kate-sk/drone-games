@@ -20,6 +20,11 @@ freq = 40  # Герц, частота посылки управляющих ко
 node_name = "offboard_node"
 lz = {}
 
+def arguments():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("num", type=int, help="models number")
+    return parser.parse_args()
+
 class PotentialField():
     def __init__(self, drone_id, radius, k_push):
         self.r = radius
@@ -55,12 +60,6 @@ class PotentialField():
         norm = self.distance(p1,p2)
         return delta/norm
 
-def arguments():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("num", type=int, help="models number")
-    return parser.parse_args()
-
-
 class CopterHandler():
     def __init__(self, num):
         self.num = num
@@ -81,7 +80,7 @@ class CopterHandler():
         formation = msg.data.split(sep=" ")
         print("formation: ", formation)
         self.formation = formation
-        if self.formation[1] != "E":
+        if self.formation[1] != "|":
             self.letter_points = []
             for i in range(1, self.num + 1):
                 self.letter_points.append([float(self.formation[i * 3 - 1]),
@@ -129,7 +128,7 @@ class CopterHandler():
             if self.land:
                 copter_controller.land()
             elif copter_controller.state == "disarm":
-                copter_controller.arming(True, 1*copter_controller.num)
+                copter_controller.arming(True, 0.6*copter_controller.num)
             elif copter_controller.state == "takeoff":
                 copter_controller.takeoff(self.update_poses())
             elif copter_controller.state == "tookoff":
@@ -161,21 +160,20 @@ class CopterController():
 
         self.t0 = time.time()
         self.dt = 0
+        self.prev_dt = 0
 
         # params
         self.p_gain = 1.4
         self.i_gain = 0.023
-        self.d_gain = 0.0089
+        self.d_gain = 0.0069
 
         self.prev_error = np.array([0., 0., 0.])
-        self.max_velocity = 8
+        self.max_velocity = 10
         self.arrival_radius = 0.3
-        # self.waypoint_list = [np.array([6., 7., 6.]), np.array([0., 14., 7.]), np.array([18., 14., 7.]), np.array([0., 0., 5.])]
+        self.init_point = True
+        self.waypoint_list = [np.array([41., -72., 15.]), np.array([41., 72., 15]), np.array([-41., 72., 15]), np.array([-41., -72.0, 15])]
 
-        self.waypoint_list = [np.array([41., -72., 15.]), np.array([41., 72., 15]), np.array([-41., 72., 15]), np.array([-41., -72.0, 15])] # 124, 20, 5
-        # self.waypoint_list = [np.array([41., -72., 5.])] # 124, 20, 5
-
-        self.current_waypoint = np.array([0., 0., 35.])
+        self.current_waypoint = np.array([0., 0., 15.])
         self.start_waypoint = np.array([0, -72, 15.])
         self.pose = np.array([0., 0., 0.])
         self.velocity = np.array([0., 0., 0.])
@@ -200,37 +198,41 @@ class CopterController():
             self.state = "tookoff"
 
     def land(self):
-        error = self.move_to_point(self.current_waypoint, None)
+        #error = self.move_to_point(self.current_waypoint, None)
+        wp = self.start_waypoint
+        wp[2] = 0
+        error = self.move_to_point(wp, None)
         if error < self.arrival_radius:
             self.state = "landed"
 
     def move_to_point(self, common_point, poses):
 
-        point = common_point + self.letter_point_shift
+        # Delta time point
+        true_dt = self.dt - self.prev_dt
+        self.prev_dt = self.dt
 
+        # Error
+        point = common_point + self.letter_point_shift
         error = (self.pose - point) * -1
 
-        integral = self.i_gain * self.dt * error
-        differential = self.d_gain / self.dt * (error - self.prev_error)
+        # Attraction
+        integral = self.i_gain * true_dt * error
+        differential = self.d_gain / true_dt * (error - self.prev_error)
         self.prev_error = error
-
         velocity = self.p_gain * error + differential + integral
-
         velocity_norm = np.linalg.norm(velocity)
         if velocity_norm > self.max_velocity:
             velocity = velocity / velocity_norm * self.max_velocity
 
+        # Repulsion
         if (poses != None):
             pf_vector = self.pf.update(poses)
-            #if(np.max(pf_vector)>0):
-                #print(velocity, "\t PF: ", pf_vector)
-            velocity += pf_vector
-            #print(velocity)
-
-        # velocity_norm = np.linalg.norm(velocity)
-        # if velocity_norm > self.max_velocity:
-        #     velocity = velocity / velocity_norm * self.max_velocity * 2
-
+            velocity += pf_vector/true_dt
+        velocity_norm = np.linalg.norm(velocity)
+        if velocity_norm > self.max_velocity:
+            velocity = velocity / velocity_norm * self.max_velocity * 2
+        
+        # Assigning velocities
         self.set_vel(velocity)
         return np.linalg.norm(error)
 
@@ -246,7 +248,10 @@ class CopterController():
             if len(self.waypoint_list) != 0:
                 buf = self.current_waypoint
                 self.current_waypoint = self.waypoint_list.pop(0)
-                self.waypoint_list.append(buf)
+                if not self.init_point:
+                    self.waypoint_list.append(buf)
+                else: 
+                    self.init_point = False
             else:
                 self.state = "arrival"
 
