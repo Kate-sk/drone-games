@@ -7,6 +7,7 @@ import sys
 import math
 import numpy as np
 import argparse
+import copy
 
 from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import TwistStamped, PoseStamped
@@ -75,6 +76,7 @@ class CopterHandler():
         self.letter_points = []
         self.formation_center_pose = np.array([0, 0, 0])
         self.skip_waypoint = False
+        self.follow_the_first = False
         rospy.Subscriber("/formations_generator/formation", String, self.formation_cb)
 
     def formation_cb(self, msg):
@@ -82,7 +84,7 @@ class CopterHandler():
         print("formation: ", formation)
         if self.formation is not None and formation[1] != self.formation[1]:
             self.skip_waypoint = True
-            print("self.skip_waypoint: ", self.skip_waypoint)
+            self.follow_the_first = False
         self.formation = formation
         if self.formation[1] != "|":
             self.letter_points = []
@@ -106,13 +108,6 @@ class CopterHandler():
             landing_pose[2] = 0
             copter_controller.current_waypoint = landing_pose
 
-    def arrived_all_check(self, controller):
-        if controller.arrived:
-            self.arrived_num += 1
-        if self.arrived_num == self.num:
-            controller.arrived_all = True
-            self.arrived_num = 0
-
     def update_poses(self):
         ps = []
         for copter_controller in self.copters:
@@ -126,7 +121,9 @@ class CopterHandler():
             copter_controller.dt = time.time() - copter_controller.t0
             copter_controller.set_mode("OFFBOARD")
             self.assign_letter_point(copter_controller, i)
-            copter_controller.skip_waypoint = self.skip_waypoint
+            copter_controller.skip_waypoint = copy.deepcopy(self.skip_waypoint)
+            if not self.follow_the_first:
+                copter_controller.velocity_2_follow = None
             # управляем аппаратом
 
             if self.land:
@@ -150,6 +147,11 @@ class CopterHandler():
         if self.arrived_num == self.num:
             for copter_controller in self.copters:
                 copter_controller.arrived_all = True
+            self.follow_the_first = True
+        if self.follow_the_first:
+            # print("self.follow_the_first: ", self.follow_the_first)
+            for i in range(1, len(self.copters)):
+                self.copters[i].velocity_2_follow = self.copters[0].velocity_independent
 
 
 class CopterController():
@@ -176,7 +178,7 @@ class CopterController():
 
         self.max_velocity = 20
         self.arrival_radius = 0.8
-        
+
         self.init_point = True
         self.waypoint_list = [np.array([41., -72., 15.]), np.array([41., 72., 15]), np.array([-41., 72., 15]), np.array([-41., -72.0, 15])]
 
@@ -187,6 +189,8 @@ class CopterController():
         self.letter_point_shift = np.array([0, 0, 0])
         self.initial_shift = None
         self.skip_waypoint = False
+        self.velocity_2_follow = None
+        self.velocity_independent = None
         self.mavros_state = State()
         self.subscribe_on_topics()
 
@@ -239,9 +243,13 @@ class CopterController():
         velocity_norm = np.linalg.norm(velocity)
         if velocity_norm > self.max_velocity:
             velocity = velocity / velocity_norm * self.max_velocity * 2
-        
+        self.velocity_independent = velocity
+
+        if self.velocity_2_follow is None:
+            self.set_vel(self.velocity_independent)
+        else:
+            self.set_vel(self.velocity_2_follow)
         # Assigning velocities
-        self.set_vel(velocity)
         return np.linalg.norm(error)
 
     def follow_waypoint_list(self, poses):
