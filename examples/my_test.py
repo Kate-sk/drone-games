@@ -18,7 +18,7 @@ from geographic_msgs.msg import GeoPointStamped
 
 from mavros_msgs.srv import SetMode, CommandBool, CommandVtolTransition, CommandHome
 
-freq = 52  # Герц, частота посылки управляющих команд аппарату
+freq = 40  # Герц, частота посылки управляющих команд аппарату
 node_name = "offboard_node"
 lz = {}
 
@@ -176,14 +176,15 @@ class CopterController():
         self.prev_dt = 0
 
         # params                    #8 m/s      #20 m/s
-        self.p_gain = 0.93          #1.4        #0.93
-        self.i_gain = 0.232         #0.023      #0.232
-        self.d_gain = 1.14          #0.0069     #1.14
+        self.p_gain =  3.2/3             #1.4        #3.2/3
+        self.i_gain =  1.3/3             #0.023      #1.3/3
+        self.d_gain =  0.4/3             #0.0069     #0.6/3
+
 
         self.prev_error = np.array([0., 0., 0.])
 
         self.max_velocity = 20
-        self.arrival_radius = 0.8
+        self.arrival_radius = 0.55
 
         self.init_point = True
         self.waypoint_list = [np.array([41., -72., 15.]), np.array([41., 72., 15]), np.array([-41., 72., 15]), np.array([-41., -72.0, 15])]
@@ -234,21 +235,21 @@ class CopterController():
         error = (self.pose - point) * -1
 
         # Attraction
-        differential = self.d_gain * true_dt * error
-        integral = self.i_gain / true_dt * (error - self.prev_error)
+        integral = self.i_gain * true_dt * error
+        differential = self.d_gain / true_dt * (error - self.prev_error)
         self.prev_error = error
         velocity = self.p_gain * error + differential + integral
-        velocity_norm = np.linalg.norm(velocity)
-        if velocity_norm > self.max_velocity:
-            velocity = velocity / velocity_norm * self.max_velocity
+        #velocity_norm = np.linalg.norm(velocity)
+        #if velocity_norm > self.max_velocity:
+        #    velocity = velocity / velocity_norm * self.max_velocity
 
         # Repulsion
         if (poses != None):
             pf_vector = self.pf.update(poses)
             velocity += pf_vector/true_dt
-        velocity_norm = np.linalg.norm(velocity)
-        if velocity_norm > self.max_velocity:
-            velocity = velocity / velocity_norm * self.max_velocity * 2
+        #velocity_norm = np.linalg.norm(velocity)
+        #if velocity_norm > self.max_velocity:
+        #    velocity = velocity / velocity_norm * self.max_velocity * 2
         self.velocity_independent = velocity
 
         if self.velocity_2_follow is None:
