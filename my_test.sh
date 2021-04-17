@@ -1,6 +1,6 @@
 #!/bin/bash
 
-num=12
+num=6
 model="iris"
 world="formation.world"
 
@@ -28,7 +28,7 @@ fi
 ./start.sh $model $num gazebo/worlds/$world --ref_point 0,-72,0.1 $arg $@
 
 if [ "$1" == "prof" ]; then
-  ./bin/formations_gen.py $model $num formation/borders.txt formation/test_fs_1/12/ --names A C P S &
+  ./bin/formations_gen.py $model $num formation/borders.txt formation/test_fs/ --names T E C T &
 fi
 
 echo "waiting ..."

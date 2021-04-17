@@ -86,7 +86,7 @@ class CopterHandler():
                 self.letter_points.append([float(self.formation[i * 3 - 1]),
                                            float(self.formation[i * 3]),
                                            float(self.formation[i * 3 + 1])])
-            self.letter_points = sorted(self.letter_points, key=lambda x: (x[2]))
+            self.letter_points = sorted(self.letter_points, key=lambda x: (x[2]),reverse=True)
         else:
             self.land = True
 
@@ -156,16 +156,16 @@ class CopterController():
         self.dt = 0
 
         # params
-        self.p_gain = 1.9
-        self.i_gain = 0.046
-        self.d_gain = 0.0187
+        self.p_gain = 1.4
+        self.i_gain = 0.023
+        self.d_gain = 0.0089
 
         self.prev_error = np.array([0., 0., 0.])
-        self.max_velocity = 10
-        self.arrival_radius = 0.2
+        self.max_velocity = 8
+        self.arrival_radius = 0.3
         # self.waypoint_list = [np.array([6., 7., 6.]), np.array([0., 14., 7.]), np.array([18., 14., 7.]), np.array([0., 0., 5.])]
 
-        self.waypoint_list = [np.array([41., -72., 35.]), np.array([41., 72., 35]), np.array([-41., 72., 35]), np.array([-41., -72.0, 35]), np.array([0, -72., 35])] # 124, 20, 5
+        self.waypoint_list = [np.array([41., -72., 15.]), np.array([41., 72., 15]), np.array([-41., 72., 15]), np.array([-41., -72.0, 15])] # 124, 20, 5
         # self.waypoint_list = [np.array([41., -72., 5.])] # 124, 20, 5
 
         self.current_waypoint = np.array([0., 0., 35.])
@@ -216,9 +216,9 @@ class CopterController():
             velocity += pf_vector
             #print(velocity)
 
-        velocity_norm = np.linalg.norm(velocity)
-        if velocity_norm > self.max_velocity:
-            velocity = velocity / velocity_norm * self.max_velocity * 2
+        # velocity_norm = np.linalg.norm(velocity)
+        # if velocity_norm > self.max_velocity:
+        #     velocity = velocity / velocity_norm * self.max_velocity * 2
 
         self.set_vel(velocity)
         return np.linalg.norm(error)
