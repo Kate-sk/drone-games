@@ -33,31 +33,59 @@ class CopterHandler():
         self.copters = []
         for n in range(1, num + 1):
             self.copters.append(CopterController(n))
-
         self.arrived_num = 0
         self.arrived_all = False
+        # формация
+        self.formation = None
+        self.land = False
+        self.letter_points = []
+        rospy.Subscriber("/formations_generator/formation", String, self.formation_cb)
+
+    def formation_cb(self, msg):
+        formation = msg.data.split(sep=" ")
+        print("formation: ", formation)
+        self.formation = formation
+        if self.formation[1] != "|":
+            self.letter_points = []
+            for i in range(1, self.num + 1):
+                self.letter_points.append([float(self.formation[i * 3 - 1]),
+                                           float(self.formation[i * 3]),
+                                           float(self.formation[i * 3 + 1])])
+            self.letter_points = sorted(self.letter_points, key=lambda x: (x[2]))
+        else:
+            self.land = True
+
+    def distance(self, point1, point2):
+        return np.linalg.norm(point1 - point2)
+
+    def assign_letter_point(self, copter_controller, i):
+        if not self.land and self.letter_points != []:
+            copter_controller.letter_point_shift = np.array(self.letter_points[i - 1])
+        else:
+            copter_controller.letter_point_shift = np.array([0, 0, 0])
 
     def loop(self):
         self.arrived_num = 0
-        for copter_controller in self.copters:
+        for copter_controller, i in zip(self.copters, range(1, self.num + 1)):
             copter_controller.dt = time.time() - copter_controller.t0
             copter_controller.set_mode("OFFBOARD")
+            self.assign_letter_point(copter_controller, i)
+
             # управляем аппаратом
-            if copter_controller.state == "disarm":
+            if self.land:
+                copter_controller.land()
+            elif copter_controller.state == "disarm":
                 copter_controller.arming(True)
             elif copter_controller.state == "takeoff":
                 copter_controller.takeoff()
             elif copter_controller.state == "tookoff":
-                copter_controller.make_formation()
                 copter_controller.follow_waypoint_list()
             elif copter_controller.state == "arrival":
                 copter_controller.move_to_point(copter_controller.current_waypoint)
-            elif copter_controller.state == "land":
-                copter_controller.land()
             copter_controller.pub_pt.publish(copter_controller.pt)
-
             if copter_controller.arrived:
                 self.arrived_num += 1
+
         if self.arrived_num == self.num:
             for copter_controller in self.copters:
                 copter_controller.arrived_all = True
@@ -85,16 +113,15 @@ class CopterController():
         self.max_velocity = 5
         self.arrival_radius = 0.6
         # self.waypoint_list = [np.array([6., 7., 6.]), np.array([0., 14., 7.]), np.array([18., 14., 7.]), np.array([0., 0., 5.])]
-        self.waypoint_list = [np.array([41., -72., 5.]), np.array([41., 72., 5]), np.array([-41., 72., 5]), np.array([-41., -72.0, 5]), np.array([0, -72., 5])] # 124, 20, 5
-        # self.waypoint_list = [np.array([41., -72., 5.])] # 124, 20, 5
+        self.waypoint_list = [np.array([41., -72., 5.]), np.array([41., 72., 5]), np.array([-41., 72., 5]),
+                              np.array([-41., -72.0, 5]), np.array([0, -72., 5])]  # 124, 20, 5
 
         self.current_waypoint = np.array([0., 0., 5.])
         self.pose = np.array([0., 0., 0.])
         self.velocity = np.array([0., 0., 0.])
+        self.letter_point_shift = np.array([0, 0, 0])
         self.mavros_state = State()
         self.subscribe_on_topics()
-
-        self.formation = None
 
     # взлет коптера
     def takeoff(self):
@@ -112,24 +139,13 @@ class CopterController():
         if error < self.arrival_radius:
             self.state = "landed"
 
-    def make_formation(self):
-        print("formation is %s"%(self.formation))
-
     def move_to_point(self, common_point):
-        if self.formation is not None:
-            point = common_point + np.array([
-                float(self.formation[self.num * 3 - 1]),
-                float(self.formation[self.num * 3]),
-                float(self.formation[self.num * 3 + 1])
-            ])
-        else:
-            point = common_point
-        # point = common_point
+        point = common_point + self.letter_point_shift
 
         error = (self.pose - point) * -1
 
-        integral = self.i_gain*self.dt*error
-        differential = self.d_gain/self.dt*(error - self.prev_error)
+        integral = self.i_gain * self.dt * error
+        differential = self.d_gain / self.dt * (error - self.prev_error)
         self.prev_error = error
 
         velocity = self.p_gain * error + differential + integral
@@ -140,24 +156,20 @@ class CopterController():
         return np.linalg.norm(error)
 
     def follow_waypoint_list(self):
-        if self.formation != "|":
-
-            error = self.move_to_point(self.current_waypoint)
-            print("point %s" % (self.pose))
-            print("target point %s" % (self.current_waypoint))
-            if error < self.arrival_radius:
-                self.arrived = True
-            if self.arrived and self.arrived_all:
-                self.arrived = False
-                self.arrived_all = False
-                if len(self.waypoint_list) != 0:
-                    buf = self.current_waypoint
-                    self.current_waypoint = self.waypoint_list.pop(0)
-                    self.waypoint_list.append(buf)
-                else:
-                    self.state = "arrival"
-        else:
-            self.state = "land"
+        error = self.move_to_point(self.current_waypoint)
+        print("point %s" % (self.pose))
+        print("target point %s" % (self.current_waypoint))
+        if error < self.arrival_radius:
+            self.arrived = True
+        if self.arrived and self.arrived_all:
+            self.arrived = False
+            self.arrived_all = False
+            if len(self.waypoint_list) != 0:
+                buf = self.current_waypoint
+                self.current_waypoint = self.waypoint_list.pop(0)
+                self.waypoint_list.append(buf)
+            else:
+                self.state = "arrival"
 
     def subscribe_on_topics(self):
         # локальная система координат, точка отсчета = место включения аппарата
@@ -166,17 +178,9 @@ class CopterController():
         # состояние
         rospy.Subscriber(f"/mavros{self.num}/state", State, self.state_cb)
 
-        # формация
-        rospy.Subscriber("/formations_generator/formation", String, self.formation_cb)
-
     def pose_cb(self, msg):
         pose = msg.pose.position
         self.pose = np.array([pose.x, pose.y, pose.z])
-
-    def formation_cb(self, msg):
-        formation = msg.data.split(sep = " ")
-        print("formation: ", formation)
-        self.formation = formation
 
     def velocity_cb(self, msg):
         velocity = msg.twist.linear
@@ -220,7 +224,6 @@ class CopterController():
         self.pt.position.y = pose[1]
         # Высота, направление вверх
         self.pt.position.z = pose[2]
-
 
     def service_proxy(self, path, arg_type, *args, **kwds):
         service = rospy.ServiceProxy(f"/mavros{self.num}/{path}", arg_type)
