@@ -20,6 +20,11 @@ freq = 40  # Герц, частота посылки управляющих ко
 node_name = "offboard_node"
 lz = {}
 
+def arguments():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("num", type=int, help="models number")
+    return parser.parse_args()
+
 class PotentialField():
     def __init__(self, drone_id, radius, k_push):
         self.r = radius
@@ -54,12 +59,6 @@ class PotentialField():
         delta = p1 - p2
         norm = self.distance(p1,p2)
         return delta/norm
-
-def arguments():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("num", type=int, help="models number")
-    return parser.parse_args()
-
 
 class CopterHandler():
     def __init__(self, num):
@@ -129,7 +128,7 @@ class CopterHandler():
             if self.land:
                 copter_controller.land()
             elif copter_controller.state == "disarm":
-                copter_controller.arming(True, 1*copter_controller.num)
+                copter_controller.arming(True, 0.6*copter_controller.num)
             elif copter_controller.state == "takeoff":
                 copter_controller.takeoff(self.update_poses())
             elif copter_controller.state == "tookoff":
@@ -166,10 +165,10 @@ class CopterController():
         # params
         self.p_gain = 1.4
         self.i_gain = 0.023
-        self.d_gain = 0.0089
+        self.d_gain = 0.0069
 
         self.prev_error = np.array([0., 0., 0.])
-        self.max_velocity = 8
+        self.max_velocity = 10
         self.arrival_radius = 0.3
         self.init_point = True
         self.waypoint_list = [np.array([41., -72., 15.]), np.array([41., 72., 15]), np.array([-41., 72., 15]), np.array([-41., -72.0, 15])]
@@ -199,7 +198,10 @@ class CopterController():
             self.state = "tookoff"
 
     def land(self):
-        error = self.move_to_point(self.start_waypoint, None)
+        #error = self.move_to_point(self.current_waypoint, None)
+        wp = self.start_waypoint
+        wp[2] = 0
+        error = self.move_to_point(wp, None)
         if error < self.arrival_radius:
             self.state = "landed"
 
