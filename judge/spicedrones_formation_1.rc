@@ -5,4 +5,4 @@ world="formation_1.world"
 #num=12
 num=24
 
-u_cmd="python3 $HOME/drone-games/examples/spicedrones.py $num"
+u_cmd="python3 $HOME/spicedrones/drone-games/examples/spicedrones.py $num"

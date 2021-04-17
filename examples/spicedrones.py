@@ -18,7 +18,7 @@ from geographic_msgs.msg import GeoPointStamped
 
 from mavros_msgs.srv import SetMode, CommandBool, CommandVtolTransition, CommandHome
 
-freq = 40  # Герц, частота посылки управляющих команд аппарату
+freq = 35  # Герц, частота посылки управляющих команд аппарату
 node_name = "offboard_node"
 lz = {}
 
@@ -190,7 +190,7 @@ class CopterController():
         # params                    #8 m/s      #20 m/s
         self.p_gain =  3.2/3             #1.4        #3.2/3
         self.i_gain =  1.3/3             #0.023      #1.3/3
-        self.d_gain =  0.42/3             #0.0069     #0.6/3
+        self.d_gain =  0.44/3             #0.0069     #0.6/3
 
 
         self.prev_error = np.array([0., 0., 0.])
