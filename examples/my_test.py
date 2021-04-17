@@ -16,7 +16,7 @@ from geographic_msgs.msg import GeoPointStamped
 
 from mavros_msgs.srv import SetMode, CommandBool, CommandVtolTransition, CommandHome
 
-freq = 40  # Герц, частота посылки управляющих команд аппарату
+freq = 52  # Герц, частота посылки управляющих команд аппарату
 node_name = "offboard_node"
 lz = {}
 
@@ -162,14 +162,14 @@ class CopterController():
         self.dt = 0
         self.prev_dt = 0
 
-        # params
-        self.p_gain = 1.4
-        self.i_gain = 0.023
-        self.d_gain = 0.0069
+        # params                    #8 m/s      #20 m/s
+        self.p_gain = 0.93          #1.4        #0.93
+        self.i_gain = 0.232         #0.023      #0.232
+        self.d_gain = 1.14          #0.0069     #1.14
 
         self.prev_error = np.array([0., 0., 0.])
-        self.max_velocity = 10
-        self.arrival_radius = 0.3
+        self.max_velocity = 20
+        self.arrival_radius = 0.8
         self.init_point = True
         self.waypoint_list = [np.array([41., -72., 15.]), np.array([41., 72., 15]), np.array([-41., 72., 15]), np.array([-41., -72.0, 15])]
 
@@ -182,7 +182,7 @@ class CopterController():
         self.mavros_state = State()
         self.subscribe_on_topics()
 
-        self.pf = PotentialField(num,1,65)
+        self.pf = PotentialField(num,0.8,85)
 
     # взлет коптера
     def takeoff(self, poses):
@@ -216,8 +216,8 @@ class CopterController():
         error = (self.pose - point) * -1
 
         # Attraction
-        integral = self.i_gain * true_dt * error
-        differential = self.d_gain / true_dt * (error - self.prev_error)
+        differential = self.d_gain * true_dt * error
+        integral = self.i_gain / true_dt * (error - self.prev_error)
         self.prev_error = error
         velocity = self.p_gain * error + differential + integral
         velocity_norm = np.linalg.norm(velocity)
