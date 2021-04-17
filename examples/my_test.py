@@ -97,7 +97,10 @@ class CopterHandler():
         if not self.land and self.letter_points != []:
             copter_controller.letter_point_shift = np.array(self.letter_points[i - 1])
         else:
-            copter_controller.letter_point_shift = np.array([0, 0, 0])
+            delta = 1.5 # distance between drones
+            col_num = i % 6 # 0-1-2-3-4-5
+            row_num = i // 6 # 0-1-2-3
+            copter_controller.letter_point_shift = np.array([delta*row_num, delta*col_num, 0]) # 6 col and 2 -4 rows
 
     def arrived_all_check(self, controller):
         if controller.arrived:
