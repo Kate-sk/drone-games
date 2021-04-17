@@ -92,7 +92,7 @@ class CopterHandler():
             copter_controller.set_mode("OFFBOARD")
             # управляем аппаратом
             if copter_controller.state == "disarm":
-                copter_controller.arming(True, 1*copter_controller.num)
+                copter_controller.arming(True)
             elif copter_controller.state == "takeoff":
                 copter_controller.takeoff(self.update_poses())
             elif copter_controller.state == "tookoff":
@@ -126,11 +126,11 @@ class CopterController():
         self.dt = 0
 
         # params
-        self.p_gain = 1.9
-        self.i_gain = 0.046
-        self.d_gain = 0.0187
+        self.p_gain = 1.6
+        self.i_gain = 0.032
+        self.d_gain = 0.0026
         self.prev_error = np.array([0., 0., 0.])
-        self.max_velocity = 10
+        self.max_velocity = 5
         self.arrival_radius = 0.2
         # self.waypoint_list = [np.array([6., 7., 6.]), np.array([0., 14., 7.]), np.array([18., 14., 7.]), np.array([0., 0., 5.])]
         self.waypoint_list = [np.array([41., -72., 35.]), np.array([41., 72., 35]), np.array([-41., 72., 35]), np.array([-41., -72.0, 35]), np.array([0, -72., 35])] # 124, 20, 5
@@ -194,11 +194,7 @@ class CopterController():
                 #print(velocity, "\t PF: ", pf_vector)
             velocity += pf_vector
             #print(velocity)
-
-        velocity_norm = np.linalg.norm(velocity)
-        if velocity_norm > self.max_velocity:
-            velocity = velocity / velocity_norm * self.max_velocity * 2
-
+        
         self.set_vel(velocity)
         return np.linalg.norm(error)
 
@@ -206,8 +202,8 @@ class CopterController():
         if self.formation != "|":
 
             error = self.move_to_point(self.current_waypoint, poses)
-            print("point %s" % (self.pose))
-            print("target point %s" % (self.current_waypoint))
+            #print("point %s" % (self.pose))
+            #print("target point %s" % (self.current_waypoint))
             if error < self.arrival_radius:
                 self.arrived = True
             if self.arrived and self.arrived_all:
@@ -216,7 +212,7 @@ class CopterController():
                 if len(self.waypoint_list) != 0:
                     buf = self.current_waypoint
                     self.current_waypoint = self.waypoint_list.pop(0)
-                    if(self.current_waypoint[2] > 20):
+                    if(self.current_waypoint[0] != 0 and self.current_waypoint[1] != 0):
                         self.waypoint_list.append(buf)
                 else:
                     self.state = "arrival"
@@ -249,16 +245,16 @@ class CopterController():
     def state_cb(self, msg):
         self.mavros_state = msg
 
-    def arming(self, to_arm, arm_time):
-        if self.dt < arm_time:
+    def arming(self, to_arm):
+        if self.dt < 10:
             self.set_vel(np.array([0., 0., 3.]))
-        if self.dt > arm_time*0.75:
+        if self.dt > 7.5:
             if self.mavros_state is not None and self.mavros_state.armed != to_arm:
                 self.service_proxy("cmd/arming", CommandBool, to_arm)
-        if self.dt > arm_time:
+        if self.dt > 10:
             self.state = "takeoff"
             # self.current_waypoint = np.array([self.pose[0], self.pose[1], 5.])
-            self.current_waypoint = np.array([0, -72, 15.])
+            self.current_waypoint = np.array([0, -72, 5.])
 
     def set_mode(self, new_mode):
         if self.mavros_state is not None and self.mavros_state.mode != new_mode:
