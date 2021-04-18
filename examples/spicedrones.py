@@ -18,7 +18,7 @@ from geographic_msgs.msg import GeoPointStamped
 
 from mavros_msgs.srv import SetMode, CommandBool, CommandVtolTransition, CommandHome
 
-freq = 40  # Герц, частота посылки управляющих команд аппарату
+freq = 20  # Герц, частота посылки управляющих команд аппарату
 node_name = "offboard_node"
 lz = {}
 
@@ -97,7 +97,7 @@ class CopterHandler():
                                            float(self.formation[i * 3 + 1])])
             bias = self.check_for_y_bias(self.letter_points)
             self.letter_points = [[arr[0], arr[1] - bias, arr[2]] for arr in self.letter_points]
-            self.letter_points = sorted(self.letter_points, key=lambda x: (x[2]), reverse=True)
+            self.letter_points = sorted(self.letter_points, key=lambda x: (x[0],x[1],x[2]), reverse=True)
         else:
             self.land = True
         self.mutex.release()
@@ -190,7 +190,7 @@ class CopterController():
         # params                    #8 m/s      #20 m/s
         self.p_gain =  3.2/3             #1.4        #3.2/3
         self.i_gain =  1.3/3             #0.023      #1.3/3
-        self.d_gain =  0.42/3             #0.0069     #0.6/3
+        self.d_gain =  0.414/3             #0.0069     #0.6/3
 
 
         self.prev_error = np.array([0., 0., 0.])
@@ -213,7 +213,7 @@ class CopterController():
         self.mavros_state = State()
         self.subscribe_on_topics()
 
-        self.pf = PotentialField(num,0.8,85)
+        self.pf = PotentialField(num,0.83,162)
 
     # взлет коптера
     def takeoff(self, poses):
@@ -236,6 +236,9 @@ class CopterController():
         if error < self.arrival_radius:
             self.state = "landed"
 
+    def distance(self, p1, p2):
+        return np.sqrt((p1[0]-p2[0])**2 + (p1[1]-p2[1])**2 +(p1[2]-p2[2])**2)
+
     def move_to_point(self, common_point, poses):
 
         # Delta time point
@@ -252,14 +255,21 @@ class CopterController():
         point = common_point + modified_letter_point_shift
         error = (self.pose - point) * -1
 
+        # Adaptive speed
+        dst = self.distance(self.pose, point)
+        if np.abs((self.pose[0]-point[0])) > 20:
+            m_vel = dst/100*self.max_velocity
+        else:
+            m_vel = self.max_velocity
+
         # Attraction
         integral = self.i_gain * true_dt * error
         differential = self.d_gain / true_dt * (error - self.prev_error)
         self.prev_error = error
         velocity = self.p_gain * error + differential + integral
-        #velocity_norm = np.linalg.norm(velocity)
-        #if velocity_norm > self.max_velocity:
-        #    velocity = velocity / velocity_norm * self.max_velocity
+        velocity_norm = np.linalg.norm(velocity)
+        if velocity_norm > m_vel:
+           velocity = velocity / velocity_norm * m_vel
 
         # Repulsion
         if (poses != None):
@@ -267,7 +277,7 @@ class CopterController():
             velocity += pf_vector/true_dt
         #velocity_norm = np.linalg.norm(velocity)
         #if velocity_norm > self.max_velocity:
-        #    velocity = velocity / velocity_norm * self.max_velocity * 2
+        #   velocity = velocity / velocity_norm * self.max_velocity
         self.velocity_independent = velocity
 
         if self.velocity_2_follow is None:
