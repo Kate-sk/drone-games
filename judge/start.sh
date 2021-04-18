@@ -15,7 +15,7 @@ if [[ -z "$sim" || -z "$type" || -z "$num" || -z "$world" || -z "$u_cmd" ]]; the
 fi
 
 if [[ -z "$team" ]]; then
-  team="Неизвестная_команда"
+  team="SpiceDrones"
 fi
 
 
