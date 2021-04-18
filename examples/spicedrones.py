@@ -18,7 +18,7 @@ from geographic_msgs.msg import GeoPointStamped
 
 from mavros_msgs.srv import SetMode, CommandBool, CommandVtolTransition, CommandHome
 
-freq = 40  # Герц, частота посылки управляющих команд аппарату
+freq = 20  # Герц, частота посылки управляющих команд аппарату
 node_name = "offboard_node"
 lz = {}
 
@@ -195,7 +195,7 @@ class CopterController():
 
         self.prev_error = np.array([0., 0., 0.])
 
-        self.max_velocity = 20
+        self.max_velocity = 10
         self.arrival_radius = 0.4
 
         self.init_point = True
@@ -213,7 +213,7 @@ class CopterController():
         self.mavros_state = State()
         self.subscribe_on_topics()
 
-        self.pf = PotentialField(num,0.8,85)
+        self.pf = PotentialField(num,1.0,150)
 
     # взлет коптера
     def takeoff(self, poses):
@@ -257,17 +257,17 @@ class CopterController():
         differential = self.d_gain / true_dt * (error - self.prev_error)
         self.prev_error = error
         velocity = self.p_gain * error + differential + integral
-        #velocity_norm = np.linalg.norm(velocity)
-        #if velocity_norm > self.max_velocity:
-        #    velocity = velocity / velocity_norm * self.max_velocity
+        velocity_norm = np.linalg.norm(velocity)
+        if velocity_norm > self.max_velocity:
+           velocity = velocity / velocity_norm * self.max_velocity
 
         # Repulsion
         if (poses != None):
             pf_vector = self.pf.update(poses)
             velocity += pf_vector/true_dt
-        #velocity_norm = np.linalg.norm(velocity)
-        #if velocity_norm > self.max_velocity:
-        #    velocity = velocity / velocity_norm * self.max_velocity * 2
+        # velocity_norm = np.linalg.norm(velocity)
+        # if velocity_norm > self.max_velocity:
+        #    velocity = velocity / velocity_norm * self.max_velocity
         self.velocity_independent = velocity
 
         if self.velocity_2_follow is None:
